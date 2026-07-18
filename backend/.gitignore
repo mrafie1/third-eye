@@ -1,2 +1,8 @@
 ﻿uploads/
 audio_out/npycache__/
+
+env
+
+*.wav
+*.jpg
+*.png
