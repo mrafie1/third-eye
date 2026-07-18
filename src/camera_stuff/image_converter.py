@@ -27,6 +27,7 @@ def raw_to_image(
     width: int,
     height: int,
     pixel_format: str = "RGB8888",
+    max_dimension: int | None = None,
 ) -> str:
     """Convert tightly packed QNX RGB8888 or NV12 data to an RGBA PNG."""
     raw_path = Path(raw_file)
@@ -48,6 +49,11 @@ def raw_to_image(
         raise ValueError(
             f"Raw file size mismatch. Expected {expected_size} bytes, "
             f"got {len(raw_data)} bytes."
+        )
+
+    if max_dimension is not None and max(width, height) > max_dimension:
+        rgba_data, width, height = _resize_rgba(
+            rgba_data, width, height, max_dimension
         )
 
     # PNG filter type 0 means each row is stored without predictive filtering.
@@ -74,6 +80,27 @@ def raw_to_image(
     )
     output_path.write_bytes(png_data)
     return str(output_path)
+
+
+def _resize_rgba(
+    data: bytes, width: int, height: int, max_dimension: int
+) -> tuple[bytes, int, int]:
+    """Downscale RGBA pixels with nearest-neighbor sampling."""
+    if max_dimension <= 0:
+        raise ValueError("max_dimension must be positive.")
+    scale = max_dimension / max(width, height)
+    new_width = max(1, round(width * scale))
+    new_height = max(1, round(height * scale))
+    output = bytearray(new_width * new_height * 4)
+
+    for output_y in range(new_height):
+        source_y = min(height - 1, output_y * height // new_height)
+        for output_x in range(new_width):
+            source_x = min(width - 1, output_x * width // new_width)
+            source = (source_y * width + source_x) * 4
+            destination = (output_y * new_width + output_x) * 4
+            output[destination : destination + 4] = data[source : source + 4]
+    return bytes(output), new_width, new_height
 
 
 def _clamp(value: int) -> int:
