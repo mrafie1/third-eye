@@ -7,7 +7,8 @@
 #include <camera/camera_api.h>
 
 static volatile sig_atomic_t keep_running = 1;
-static unsigned int frame_count = 0;
+static volatile sig_atomic_t capture_finished = 0;
+static const char *output_filename = "/tmp/third-eye.raw";
 
 /*
  * Called when Ctrl+C is pressed.
@@ -23,82 +24,70 @@ static void handle_signal(int signal_number)
  */
 static void process_frame(camera_buffer_t *buffer)
 {
+    FILE *output;
+    uint32_t width;
+    uint32_t height;
+    uint32_t stride;
+
     if (buffer == NULL)
     {
         fprintf(stderr, "Error: NULL camera buffer\n");
         return;
     }
 
-    frame_count++;
-
-    /*
-     * Print the first frame and then every 30th frame.
-     */
-    if (frame_count != 1 && frame_count % 30 != 0)
+    if (capture_finished)
     {
         return;
     }
 
-    printf("\nFrame %u\n", frame_count);
-    printf("Received frame type: %d\n", (int)buffer->frametype);
-    printf(
-        "Frame timestamp: %lld\n",
-        (long long)buffer->frametimestamp
-    );
-
-    switch (buffer->frametype)
+    if (buffer->frametype != CAMERA_FRAMETYPE_RGB8888)
     {
-        case CAMERA_FRAMETYPE_RGB8888:
-        {
-            uint32_t width = buffer->framedesc.rgb8888.width;
-            uint32_t height = buffer->framedesc.rgb8888.height;
-
-            printf("Format: RGB8888\n");
-            printf("Resolution: %ux%u\n", width, height);
-            printf(
-                "Pixel data address: %p\n",
-                (void *)buffer->framebuf
-            );
-            break;
-        }
-
-        case CAMERA_FRAMETYPE_RGB888:
-        {
-            uint32_t width = buffer->framedesc.rgb888.width;
-            uint32_t height = buffer->framedesc.rgb888.height;
-
-            printf("Format: RGB888\n");
-            printf("Resolution: %ux%u\n", width, height);
-            printf(
-                "Pixel data address: %p\n",
-                (void *)buffer->framebuf
-            );
-            break;
-        }
-
-        case CAMERA_FRAMETYPE_NV12:
-        {
-            uint32_t width = buffer->framedesc.nv12.width;
-            uint32_t height = buffer->framedesc.nv12.height;
-
-            printf("Format: NV12\n");
-            printf("Resolution: %ux%u\n", width, height);
-            printf(
-                "Pixel data address: %p\n",
-                (void *)buffer->framebuf
-            );
-            break;
-        }
-
-        default:
-            printf(
-                "Unsupported frame format: %d\n",
-                (int)buffer->frametype
-            );
-            break;
+        fprintf(stderr, "Unsupported frame format: %d (RGB8888 required)\n",
+                (int)buffer->frametype);
+        capture_finished = -1;
+        return;
     }
 
+    width = buffer->framedesc.rgb8888.width;
+    height = buffer->framedesc.rgb8888.height;
+    stride = buffer->framedesc.rgb8888.stride;
+    output = fopen(output_filename, "wb");
+    if (output == NULL)
+    {
+        perror("Could not open capture output");
+        capture_finished = -1;
+        return;
+    }
+
+    /* Strip any QNX row padding from the saved RGB8888 frame. */
+    for (uint32_t y = 0; y < height; y++)
+    {
+        size_t written = fwrite(
+            buffer->framebuf + ((size_t)y * stride),
+            1,
+            (size_t)width * 4,
+            output
+        );
+        if (written != (size_t)width * 4)
+        {
+            perror("Could not write complete camera frame");
+            fclose(output);
+            capture_finished = -1;
+            return;
+        }
+    }
+
+    if (fclose(output) != 0)
+    {
+        perror("Could not finish camera frame");
+        capture_finished = -1;
+        return;
+    }
+
+    /* Machine-readable output consumed by device_client.py. */
+    printf("CAPTURE %u %u %s\n", width, height, output_filename);
     fflush(stdout);
+    capture_finished = 1;
 }
 
 /*
@@ -136,7 +125,7 @@ static void status_callback(
     fflush(stdout);
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     camera_error_t error;
     camera_handle_t camera_handle = CAMERA_HANDLE_INVALID;
@@ -150,6 +139,16 @@ int main(void)
      */
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
+
+    if (argc > 2)
+    {
+        fprintf(stderr, "Usage: %s [output.raw]\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+    if (argc == 2)
+    {
+        output_filename = argv[1];
+    }
 
     /*
      * First call: determine how many cameras are available.
@@ -305,18 +304,17 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    printf("Camera stream started.\n");
-    printf("Press Ctrl+C to stop.\n");
+    printf("Camera stream started; capturing one frame.\n");
 
     /*
      * Keep the main process alive while callbacks receive frames.
      */
-    while (keep_running)
+    while (keep_running && capture_finished == 0)
     {
         sleep(1);
     }
 
-    printf("\nStopping camera stream...\n");
+    printf("Stopping camera stream...\n");
 
     error = camera_stop_viewfinder(camera_handle);
 
@@ -339,6 +337,11 @@ int main(void)
             (int)error
         );
 
+        return EXIT_FAILURE;
+    }
+
+    if (!keep_running || capture_finished < 0)
+    {
         return EXIT_FAILURE;
     }
 
