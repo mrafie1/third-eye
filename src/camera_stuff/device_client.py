@@ -22,8 +22,8 @@ from backend.vision import analyze_image
 CAPTURE_LINE = re.compile(r"^CAPTURE (\d+) (\d+) (.+)$", re.MULTILINE)
 
 
-def capture_jpeg(capture_program: str, jpeg_path: Path) -> Path:
-    raw_path = jpeg_path.with_suffix(".raw")
+def capture_png(capture_program: str, png_path: Path) -> Path:
+    raw_path = png_path.with_suffix(".raw")
     result = subprocess.run(
         [capture_program, str(raw_path)],
         capture_output=True,
@@ -42,9 +42,9 @@ def capture_jpeg(capture_program: str, jpeg_path: Path) -> Path:
         )
 
     width, height = int(match.group(1)), int(match.group(2))
-    raw_to_image(raw_path, jpeg_path, width, height)
+    raw_to_image(raw_path, png_path, width, height)
     raw_path.unlink(missing_ok=True)
-    return jpeg_path
+    return png_path
 
 
 def interpret_image(
@@ -53,7 +53,7 @@ def interpret_image(
 ) -> dict:
     result = analyze_image(
         image_path.read_bytes(),
-        mime_type="image/jpeg",
+        mime_type="image/png",
         question=question,
     )
     return result.model_dump()
@@ -73,7 +73,7 @@ def main() -> None:
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory(prefix="third-eye-") as directory:
-        image_path = capture_jpeg(args.camera, Path(directory) / "capture.jpg")
+        image_path = capture_png(args.camera, Path(directory) / "capture.png")
         result = interpret_image(
             image_path,
             args.question,
