@@ -1,54 +1,50 @@
 # third-eye
 
-Assistive camera prototype for Raspberry Pi 5 on QNX. The device captures a
-frame, uploads a JPEG to the backend, and receives a short description suitable
-for text-to-speech.
+Assistive camera prototype for Raspberry Pi 5 on QNX. The program captures a
+camera frame, sends the JPEG directly to Gemini, and prints a short response
+suitable for text-to-speech. There is no HTTP server and no local OCR engine.
 
-Text reading uses RapidOCR locally on the backend. It is free, open source, and
-does not send images to an OCR provider. Gemini is optional for questions that
-require interpretation.
+## Install
 
-## Backend
-
-Keep the Gemini API key on the backend machine:
+On the QNX Raspberry Pi:
 
 ```sh
-cd backend
 python -m pip install -r requirements.txt
-copy ..\.env.example .env
-# Edit .env and set GEMINI_API_KEY.
-uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
-On macOS/Linux, use `cp` rather than `copy`. Test the vision layer directly:
+Place the Gemini key in `backend/.env`:
 
-```sh
-cd backend
-python test_vision.py test_menu.jpg --question "Read this menu."
+```env
+GEMINI_API_KEY=your_rotated_key
+GEMINI_VISION_MODEL=gemini-2.5-flash
 ```
 
-## QNX device
+## Build the QNX camera program
 
 ```sh
 qcc -o testing_camera src/camera_stuff/testing_camera.c -lcamera_api
-python -m pip install requests Pillow
-export THIRD_EYE_SERVER_URL=http://SERVER_IP:8000
-python src/camera_stuff/device_client.py "Read the sign in front of me."
+chmod +x testing_camera
 ```
 
-Free local OCR is the default:
+## Run
+
+Point the camera at the text and run:
 
 ```sh
-python src/camera_stuff/device_client.py --mode read
+python src/camera_stuff/device_client.py \
+  "Read all visible text in front of me."
 ```
 
-For an interpreted question, use OCR-grounded Gemini:
+For a specific question:
 
 ```sh
-python src/camera_stuff/device_client.py --mode ask \
+python src/camera_stuff/device_client.py \
   "What is the cheapest item on this menu?"
 ```
 
-`testing_camera` captures one RGB8888 frame, removes QNX row padding, and
-reports its actual dimensions. The client converts it to JPEG before upload, so
-the camera resolution is not hardcoded.
+The direct call path is:
+
+1. `testing_camera` captures one RGB8888 frame and removes QNX row padding.
+2. `device_client.py` converts the raw frame to JPEG.
+3. `backend.vision.analyze_image()` sends the image directly to Gemini.
+4. The device client prints `spoken_text`.

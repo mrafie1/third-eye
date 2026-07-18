@@ -1,17 +1,22 @@
-"""Capture one QNX camera frame and send it to the third-eye backend."""
+"""Capture one QNX camera frame and interpret it in the same process."""
 
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-import requests
-
 from image_converter import raw_to_image
+
+# Allow this directly executed script to import the repository's backend package.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from backend.vision import analyze_image
 
 
 CAPTURE_LINE = re.compile(r"^CAPTURE (\d+) (\d+) (.+)$", re.MULTILINE)
@@ -42,22 +47,16 @@ def capture_jpeg(capture_program: str, jpeg_path: Path) -> Path:
     return jpeg_path
 
 
-def request_description(
-    server_url: str,
+def interpret_image(
     image_path: Path,
     question: str,
-    mode: str = "read",
-    timeout: float = 60,
 ) -> dict:
-    with image_path.open("rb") as image:
-        response = requests.post(
-            f"{server_url.rstrip('/')}/vision",
-            data={"question": question, "mode": mode},
-            files={"image": (image_path.name, image, "image/jpeg")},
-            timeout=timeout,
-        )
-    response.raise_for_status()
-    return response.json()
+    result = analyze_image(
+        image_path.read_bytes(),
+        mime_type="image/jpeg",
+        question=question,
+    )
+    return result.model_dump()
 
 
 def main() -> None:
@@ -68,28 +67,16 @@ def main() -> None:
         default="Describe what is in front of me and read any important text.",
     )
     parser.add_argument(
-        "--server",
-        default=os.getenv("THIRD_EYE_SERVER_URL", "http://127.0.0.1:8000"),
-    )
-    parser.add_argument(
         "--camera",
-        default=os.getenv("THIRD_EYE_CAMERA_BIN", "./testing_camera"),
-    )
-    parser.add_argument(
-        "--mode",
-        choices=("read", "ask"),
-        default="read",
-        help="'read' is free local OCR; 'ask' uses OCR plus Gemini.",
+        default="./testing_camera",
     )
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory(prefix="third-eye-") as directory:
         image_path = capture_jpeg(args.camera, Path(directory) / "capture.jpg")
-        result = request_description(
-            args.server,
+        result = interpret_image(
             image_path,
             args.question,
-            mode=args.mode,
         )
     print(result["spoken_text"])
 
