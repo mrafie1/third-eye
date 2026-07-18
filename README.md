@@ -9,7 +9,8 @@ suitable for text-to-speech. There is no HTTP server and no local OCR engine.
 On the QNX Raspberry Pi:
 
 ```sh
-python -m pip install Pillow
+No Python packages are required for camera capture, PNG conversion, or the
+Gemini REST call.
 ```
 
 Place the Gemini key in `backend/.env`:
@@ -45,7 +46,8 @@ python src/camera_stuff/device_client.py \
 The direct call path is:
 
 1. `testing_camera` captures one RGB8888 frame and removes QNX row padding.
-2. `device_client.py` converts the raw frame to JPEG.
+2. `device_client.py` converts the raw frame to PNG using only Python's standard
+   library.
 3. `backend.vision.analyze_image()` sends the image directly to Gemini using
    Python's standard-library HTTP client.
 4. The device client prints `spoken_text`.

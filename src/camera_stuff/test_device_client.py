@@ -26,17 +26,17 @@ def test_capture_uses_reported_dimensions(monkeypatch, tmp_path: Path) -> None:
         Path(jpeg_path).touch()
 
     monkeypatch.setattr(device_client, "raw_to_image", fake_convert)
-    result = device_client.capture_jpeg(
+    result = device_client.capture_png(
         "./testing_camera",
-        tmp_path / "frame.jpg",
+        tmp_path / "frame.png",
     )
-    assert result == tmp_path / "frame.jpg"
+    assert result == tmp_path / "frame.png"
     assert converted["width"] == 320
     assert converted["height"] == 240
 
 
 def test_interpret_image_calls_gemini_directly(monkeypatch, tmp_path: Path) -> None:
-    image_path = tmp_path / "frame.jpg"
+    image_path = tmp_path / "frame.png"
     image_path.write_bytes(b"jpeg")
     received = {}
 
@@ -55,6 +55,6 @@ def test_interpret_image_calls_gemini_directly(monkeypatch, tmp_path: Path) -> N
     assert result["spoken_text"] == "The board says hello."
     assert received == {
         "image_bytes": b"jpeg",
-        "mime_type": "image/jpeg",
+        "mime_type": "image/png",
         "question": "Read the board.",
     }
