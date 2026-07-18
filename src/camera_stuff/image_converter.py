@@ -38,7 +38,11 @@ def raw_to_image(
     )
 
 
-    image.save(output_file)
+    if str(output_file).lower().endswith((".jpg", ".jpeg")):
+        image = image.convert("RGB")
+        image.save(output_file, format="JPEG", quality=90)
+    else:
+        image.save(output_file)
 
     return output_file
 

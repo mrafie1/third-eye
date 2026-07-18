@@ -1,0 +1,26 @@
+RESTAURANT
+menu
+Menu and Prices:
+Grilled Chicken Caesar Salad $12.99
+Classic Club Sandwich $10.99
+Spinach and Feta Stuffed Chicken $14.99
+Vegetable Quinoa Bowl $11.99
+BBQ Pulled Pork Sandwich $9.99
+Caprese Panini $8.99
+Fish Tacos $13.99
+Mushroom and Swiss Burger $12.99
+Quiche Lorraine $10.99
+Mediterranean Pasta $13.99
+Asian Chicken Salad $11.99
+Beef Stir-Fry $15.99
+Margherita Pizza $14.99
+Roasted Vegetable Wrap $9.99
+Soup of the Day $5.99
+Beverages:
+Soft Drinks $2.99
+Iced Tea $2.99
+Freshly Squeezed Lemonade $3.99
+Fruit Smoothies $4.99
+Coffee $2.99
+Hot Tea $2.99
+Bottled Water $1.99

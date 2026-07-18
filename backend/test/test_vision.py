@@ -1,24 +1,31 @@
+"""Run the server's vision code against a local image."""
+
+from __future__ import annotations
+
+import argparse
+import mimetypes
+from pathlib import Path
+
 from dotenv import load_dotenv
-import os
-from google import genai
 
-load_dotenv()
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+from vision import analyze_image
 
-image_file = client.files.upload(file="test_menu.jpg")
 
-prompt = """
-You are a visual assistant for a blind or low-vision user wearing a camera.
-The user asked: "Can you help me find the menu?"
+def main() -> None:
+    load_dotenv()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("image", nargs="?", default="test_menu.jpg")
+    parser.add_argument(
+        "--question",
+        default="Read the menu and tell me the most important items and prices.",
+    )
+    args = parser.parse_args()
 
-Respond with a short, direct answer describing where the object is
-relative to the center of the image (left, right, up, down, or centered),
-and whether it's visible at all. If you're not confident, say so.
-"""
+    path = Path(args.image)
+    mime_type = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+    result = analyze_image(path.read_bytes(), mime_type, args.question)
+    print(result.model_dump_json(indent=2))
 
-response = client.models.generate_content(
-    model="gemini-flash-latest",
-    contents=[prompt, image_file]
-)
 
-print(response.text)
+if __name__ == "__main__":
+    main()
