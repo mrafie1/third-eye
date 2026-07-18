@@ -1,0 +1,24 @@
+# HTTP requests
+requests>=2.32.0
+
+# OpenAI API (or replace with your AI provider's SDK)
+openai>=1.100.0
+
+# Image processing
+Pillow>=11.0.0
+
+# Environment variables
+python-dotenv>=1.1.0
+
+# Data validation
+pydantic>=2.11.0
+
+# GPIO button handling (works on Raspberry Pi)
+gpiozero>=2.0
+
+# Audio recording/playback
+sounddevice>=0.5.2
+soundfile>=0.13.1
+
+# Numerical arrays (used by sounddevice and image processing)
+numpy>=2.2.0
