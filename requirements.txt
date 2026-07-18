@@ -1,14 +1,5 @@
-# Gemini API for optional interpreted questions
-google-genai>=1.0.0
-
 # Image processing
 Pillow>=11.0.0
-
-# Environment variables
-python-dotenv>=1.1.0
-
-# Data validation
-pydantic>=2.11.0
 
 # GPIO button handling (works on Raspberry Pi)
 gpiozero>=2.0
