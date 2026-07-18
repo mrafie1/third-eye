@@ -3,5 +3,4 @@ __pycache__/
 *.py[cod]
 .venv/
 backend/uploads/
-backend/audio_out/
 *.raw
