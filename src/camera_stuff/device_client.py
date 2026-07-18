@@ -46,7 +46,16 @@ def capture_png(capture_program: str, png_path: Path) -> Path:
 
     pixel_format = match.group(1)
     width, height = int(match.group(2)), int(match.group(3))
-    raw_to_image(raw_path, png_path, width, height, pixel_format)
+    # Full-resolution QNX frames produce large base64 requests that can time
+    # out on the Pi. 1024 px retains useful text while greatly reducing upload.
+    raw_to_image(
+        raw_path,
+        png_path,
+        width,
+        height,
+        pixel_format,
+        max_dimension=1024,
+    )
     raw_path.unlink(missing_ok=True)
     return png_path
 

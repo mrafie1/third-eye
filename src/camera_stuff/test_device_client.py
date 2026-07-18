@@ -16,13 +16,21 @@ def test_capture_uses_reported_dimensions(monkeypatch, tmp_path: Path) -> None:
     )
     converted = {}
 
-    def fake_convert(raw_path, jpeg_path, width, height, pixel_format):
+    def fake_convert(
+        raw_path,
+        jpeg_path,
+        width,
+        height,
+        pixel_format,
+        max_dimension=None,
+    ):
         converted.update(
             raw_path=raw_path,
             jpeg_path=jpeg_path,
             width=width,
             height=height,
             pixel_format=pixel_format,
+            max_dimension=max_dimension,
         )
         Path(jpeg_path).touch()
 
@@ -35,6 +43,7 @@ def test_capture_uses_reported_dimensions(monkeypatch, tmp_path: Path) -> None:
     assert converted["width"] == 320
     assert converted["height"] == 240
     assert converted["pixel_format"] == "NV12"
+    assert converted["max_dimension"] == 1024
 
 
 def test_interpret_image_calls_gemini_directly(monkeypatch, tmp_path: Path) -> None:
