@@ -10,18 +10,19 @@ def test_capture_uses_reported_dimensions(monkeypatch, tmp_path: Path) -> None:
         "run",
         lambda *args, **kwargs: SimpleNamespace(
             returncode=0,
-            stdout="Camera ready\nCAPTURE 320 240 /tmp/frame.raw\n",
+            stdout="Camera ready\nCAPTURE NV12 320 240 /tmp/frame.raw\n",
             stderr="",
         ),
     )
     converted = {}
 
-    def fake_convert(raw_path, jpeg_path, width, height):
+    def fake_convert(raw_path, jpeg_path, width, height, pixel_format):
         converted.update(
             raw_path=raw_path,
             jpeg_path=jpeg_path,
             width=width,
             height=height,
+            pixel_format=pixel_format,
         )
         Path(jpeg_path).touch()
 
@@ -33,6 +34,7 @@ def test_capture_uses_reported_dimensions(monkeypatch, tmp_path: Path) -> None:
     assert result == tmp_path / "frame.png"
     assert converted["width"] == 320
     assert converted["height"] == 240
+    assert converted["pixel_format"] == "NV12"
 
 
 def test_interpret_image_calls_gemini_directly(monkeypatch, tmp_path: Path) -> None:

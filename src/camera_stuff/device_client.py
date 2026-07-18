@@ -19,7 +19,10 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from backend.vision import analyze_image
 
 
-CAPTURE_LINE = re.compile(r"^CAPTURE (\d+) (\d+) (.+)$", re.MULTILINE)
+CAPTURE_LINE = re.compile(
+    r"^CAPTURE (RGB8888|NV12) (\d+) (\d+) (.+)$",
+    re.MULTILINE,
+)
 
 
 def capture_png(capture_program: str, png_path: Path) -> Path:
@@ -41,8 +44,9 @@ def capture_png(capture_program: str, png_path: Path) -> Path:
             f"Output was: {result.stdout.strip()}"
         )
 
-    width, height = int(match.group(1)), int(match.group(2))
-    raw_to_image(raw_path, png_path, width, height)
+    pixel_format = match.group(1)
+    width, height = int(match.group(2)), int(match.group(3))
+    raw_to_image(raw_path, png_path, width, height, pixel_format)
     raw_path.unlink(missing_ok=True)
     return png_path
 
