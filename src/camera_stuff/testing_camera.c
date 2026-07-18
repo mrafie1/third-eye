@@ -28,6 +28,7 @@ static void process_frame(camera_buffer_t *buffer)
     uint32_t width;
     uint32_t height;
     uint32_t stride;
+    const char *format_name;
 
     if (buffer == NULL)
     {
@@ -40,17 +41,27 @@ static void process_frame(camera_buffer_t *buffer)
         return;
     }
 
-    if (buffer->frametype != CAMERA_FRAMETYPE_RGB8888)
+    if (buffer->frametype == CAMERA_FRAMETYPE_RGB8888)
     {
-        fprintf(stderr, "Unsupported frame format: %d (RGB8888 required)\n",
+        width = buffer->framedesc.rgb8888.width;
+        height = buffer->framedesc.rgb8888.height;
+        stride = buffer->framedesc.rgb8888.stride;
+        format_name = "RGB8888";
+    }
+    else if (buffer->frametype == CAMERA_FRAMETYPE_NV12)
+    {
+        width = buffer->framedesc.nv12.width;
+        height = buffer->framedesc.nv12.height;
+        stride = buffer->framedesc.nv12.stride;
+        format_name = "NV12";
+    }
+    else
+    {
+        fprintf(stderr, "Unsupported frame format: %d\n",
                 (int)buffer->frametype);
         capture_finished = -1;
         return;
     }
-
-    width = buffer->framedesc.rgb8888.width;
-    height = buffer->framedesc.rgb8888.height;
-    stride = buffer->framedesc.rgb8888.stride;
     output = fopen(output_filename, "wb");
     if (output == NULL)
     {
@@ -59,21 +70,51 @@ static void process_frame(camera_buffer_t *buffer)
         return;
     }
 
-    /* Strip any QNX row padding from the saved RGB8888 frame. */
+    /* Strip any QNX row padding from the saved frame. */
     for (uint32_t y = 0; y < height; y++)
     {
+        size_t row_size =
+            buffer->frametype == CAMERA_FRAMETYPE_RGB8888
+            ? (size_t)width * 4
+            : (size_t)width;
         size_t written = fwrite(
             buffer->framebuf + ((size_t)y * stride),
             1,
-            (size_t)width * 4,
+            row_size,
             output
         );
-        if (written != (size_t)width * 4)
+        if (written != row_size)
         {
             perror("Could not write complete camera frame");
             fclose(output);
             capture_finished = -1;
             return;
+        }
+    }
+
+    if (buffer->frametype == CAMERA_FRAMETYPE_NV12)
+    {
+        /*
+         * NV12 stores a full-resolution Y plane followed by height/2 rows of
+         * interleaved U,V samples. Both planes use the reported stride.
+         */
+        uint8_t *uv_plane =
+            buffer->framebuf + ((size_t)stride * height);
+        for (uint32_t y = 0; y < height / 2; y++)
+        {
+            size_t written = fwrite(
+                uv_plane + ((size_t)y * stride),
+                1,
+                width,
+                output
+            );
+            if (written != width)
+            {
+                perror("Could not write complete NV12 chroma plane");
+                fclose(output);
+                capture_finished = -1;
+                return;
+            }
         }
     }
 
@@ -85,7 +126,13 @@ static void process_frame(camera_buffer_t *buffer)
     }
 
     /* Machine-readable output consumed by device_client.py. */
-    printf("CAPTURE %u %u %s\n", width, height, output_filename);
+    printf(
+        "CAPTURE %s %u %u %s\n",
+        format_name,
+        width,
+        height,
+        output_filename
+    );
     fflush(stdout);
     capture_finished = 1;
 }

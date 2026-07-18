@@ -26,16 +26,24 @@ def raw_to_image(
     output_file: str | Path,
     width: int,
     height: int,
+    pixel_format: str = "RGB8888",
 ) -> str:
-    """Convert tightly packed QNX RGB8888 data to an RGBA PNG."""
+    """Convert tightly packed QNX RGB8888 or NV12 data to an RGBA PNG."""
     raw_path = Path(raw_file)
     output_path = Path(output_file)
     if output_path.suffix.lower() != ".png":
         raise ValueError("The dependency-free converter only writes .png files.")
 
     raw_data = raw_path.read_bytes()
-    row_size = width * 4
-    expected_size = row_size * height
+    if pixel_format == "RGB8888":
+        rgba_data = raw_data
+        expected_size = width * height * 4
+    elif pixel_format == "NV12":
+        expected_size = width * height * 3 // 2
+        rgba_data = _nv12_to_rgba(raw_data, width, height)
+    else:
+        raise ValueError(f"Unsupported camera pixel format: {pixel_format}")
+
     if len(raw_data) != expected_size:
         raise ValueError(
             f"Raw file size mismatch. Expected {expected_size} bytes, "
@@ -43,9 +51,10 @@ def raw_to_image(
         )
 
     # PNG filter type 0 means each row is stored without predictive filtering.
+    rgba_row_size = width * 4
     scanlines = b"".join(
-        b"\x00" + raw_data[offset : offset + row_size]
-        for offset in range(0, expected_size, row_size)
+        b"\x00" + rgba_data[offset : offset + rgba_row_size]
+        for offset in range(0, len(rgba_data), rgba_row_size)
     )
     header = struct.pack(
         ">IIBBBBB",
@@ -65,3 +74,38 @@ def raw_to_image(
     )
     output_path.write_bytes(png_data)
     return str(output_path)
+
+
+def _clamp(value: int) -> int:
+    return max(0, min(255, value))
+
+
+def _nv12_to_rgba(data: bytes, width: int, height: int) -> bytes:
+    if width % 2 or height % 2:
+        raise ValueError("NV12 images must have even width and height.")
+    expected_size = width * height * 3 // 2
+    if len(data) != expected_size:
+        raise ValueError(
+            f"Raw file size mismatch. Expected {expected_size} bytes, "
+            f"got {len(data)} bytes."
+        )
+
+    y_plane_size = width * height
+    output = bytearray(width * height * 4)
+    for y in range(height):
+        uv_row = y_plane_size + (y // 2) * width
+        for x in range(width):
+            luminance = data[y * width + x]
+            uv_index = uv_row + (x // 2) * 2
+            u = data[uv_index] - 128
+            v = data[uv_index + 1] - 128
+
+            c = max(0, luminance - 16)
+            red = _clamp((298 * c + 409 * v + 128) >> 8)
+            green = _clamp((298 * c - 100 * u - 208 * v + 128) >> 8)
+            blue = _clamp((298 * c + 516 * u + 128) >> 8)
+            out_index = (y * width + x) * 4
+            output[out_index : out_index + 4] = bytes(
+                (red, green, blue, 255)
+            )
+    return bytes(output)
