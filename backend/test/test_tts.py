@@ -13,8 +13,12 @@ audio = client.text_to_speech.convert(
     text=text
 )
 
-with open("test_output.wav", "wb") as f:
+output_dir = os.path.join(os.path.dirname(__file__), "audio_out")
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, "test_output.wav")
+
+with open(output_path, "wb") as f:
     for chunk in audio:
         f.write(chunk)
 
-print("Saved test_output.wav")
+print(f"Saved {output_path}")
