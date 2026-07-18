@@ -22,7 +22,6 @@ static void handle_signal(int signal_number)
 
 void process_frame(camera_buffer_t *buffer)
 {
-    static unsigned int frame_count = 0;
 
     if (buffer == NULL)
     {
