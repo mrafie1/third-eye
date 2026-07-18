@@ -7,6 +7,7 @@
 #include <camera/camera_api.h>
 
 static volatile sig_atomic_t keep_running = 1;
+static unsigned int frame_count = 0;
 
 /*
  * Called when Ctrl+C is pressed.
@@ -22,7 +23,6 @@ static void handle_signal(int signal_number)
  */
 static void process_frame(camera_buffer_t *buffer)
 {
-    static unsigned int frame_count = 0;
 
     if (buffer == NULL)
     {
