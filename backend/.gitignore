@@ -3,6 +3,4 @@ audio_out/npycache__/
 
 env
 
-*.wav
-
 .env
