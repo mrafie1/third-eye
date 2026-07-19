@@ -18,7 +18,7 @@ Place the Gemini key in `backend/.env`:
 
 ```env
 GEMINI_API_KEY=your_rotated_key
-GEMINI_VISION_MODEL=gemini-3-flash-preview
+GEMINI_VISION_MODEL=gemini-2.5-flash
 ELEVENLABS_API_KEY=your_elevenlabs_key
 ELEVENLABS_VOICE_ID=N2lVS1w4EtoT3dr4eOWO
 ELEVENLABS_MODEL_ID=eleven_multilingual_v2
