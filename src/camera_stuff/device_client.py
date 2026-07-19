@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from backend.vision import analyze_image
+from backend.speech import send_audio, synthesize_speech
 
 
 CAPTURE_LINE = re.compile(
@@ -83,6 +85,16 @@ def main() -> None:
         "--camera",
         default="./testing_camera",
     )
+    parser.add_argument(
+        "--audio-url",
+        default=os.getenv("UNO_Q_AUDIO_URL"),
+        help="UNO Q playback receiver URL, such as http://172.20.10.3:8765",
+    )
+    parser.add_argument(
+        "--no-audio",
+        action="store_true",
+        help="Print the Gemini response without generating or playing speech.",
+    )
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory(prefix="third-eye-") as directory:
@@ -91,7 +103,16 @@ def main() -> None:
             image_path,
             args.question,
         )
-    print(result["spoken_text"])
+    spoken_text = result["spoken_text"]
+    print(spoken_text, flush=True)
+
+    if not args.no_audio:
+        if not args.audio_url:
+            raise RuntimeError(
+                "Set UNO_Q_AUDIO_URL in backend/.env or pass --audio-url."
+            )
+        audio = synthesize_speech(spoken_text)
+        send_audio(audio, args.audio_url)
 
 
 if __name__ == "__main__":

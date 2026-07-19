@@ -1,8 +1,9 @@
 # third-eye
 
 Assistive camera prototype for Raspberry Pi 5 on QNX. The program captures a
-camera frame, sends the JPEG directly to Gemini, and prints a short response
-suitable for text-to-speech. There is no HTTP server and no local OCR engine.
+camera frame, sends the image directly to Gemini, prints the response, converts
+it to speech with ElevenLabs, and sends the MP3 to an UNO Q for playback.
+There is no local OCR engine or Pi-hosted HTTP server.
 
 ## Install
 
@@ -18,6 +19,11 @@ Place the Gemini key in `backend/.env`:
 ```env
 GEMINI_API_KEY=your_rotated_key
 GEMINI_VISION_MODEL=gemini-2.5-flash
+ELEVENLABS_API_KEY=your_elevenlabs_key
+ELEVENLABS_VOICE_ID=N2lVS1w4EtoT3dr4eOWO
+ELEVENLABS_MODEL_ID=eleven_multilingual_v2
+UNO_Q_AUDIO_URL=http://172.20.10.3:8765
+UNO_Q_AUDIO_TIMEOUT=300
 ```
 
 ## Build the QNX camera program
@@ -51,3 +57,30 @@ The direct call path is:
 3. `backend.vision.analyze_image()` sends the image directly to Gemini using
    Python's standard-library HTTP client.
 4. The device client prints `spoken_text`.
+5. `backend.speech.synthesize_speech()` converts the text to MP3 with
+   ElevenLabs.
+6. The MP3 bytes are posted directly to the UNO Q playback receiver.
+
+To test the camera and Gemini without generating audio:
+
+```sh
+python src/camera_stuff/device_client.py --no-audio \
+  "Read all visible text in front of me."
+```
+
+## Test without the Raspberry Pi
+
+Run the full pipeline from a computer using an existing image:
+
+```sh
+python test_image_to_speech.py backend/test_images/menu.jpg \
+  "Read all menu items and prices." \
+  --audio-url http://172.20.10.3:8765
+```
+
+To save the ElevenLabs result locally instead of sending it:
+
+```sh
+python test_image_to_speech.py backend/test_images/menu.jpg \
+  --save-audio test_output.mp3
+```
