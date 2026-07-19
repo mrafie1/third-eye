@@ -72,7 +72,7 @@ def analyze_image(
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set in backend/.env.")
 
-    model = os.getenv("GEMINI_VISION_MODEL", "gemini-3-flash-preview")
+    model = os.getenv("GEMINI_VISION_MODEL", "gemini-3.5-flash")
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent"
