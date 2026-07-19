@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import termios
@@ -27,6 +28,97 @@ BUTTON_PROMPTS = {
         "Read all visible text in front of me exactly."
     ),
 }
+
+UART_DRIVER_COMMAND = [
+    "devc-serpl011-rpi5",
+    "-b115200",
+    "-v",
+    "-c50000000",
+    "-e",
+    "-F",
+    "-u1",
+    "0x1f00030000,185",
+]
+
+
+def run_setup_command(command: list[str]) -> None:
+    """Run one privileged QNX UART setup command and report it."""
+    print(f"UART setup: {' '.join(command)}", flush=True)
+    try:
+        subprocess.run(command, check=True)
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            f"Required QNX command was not found: {command[0]}"
+        ) from error
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(
+            f"UART setup command failed with status {error.returncode}: "
+            f"{' '.join(command)}"
+        ) from error
+
+
+def setup_qnx_uart(serial_device: str) -> None:
+    """Create and configure the Pi 5 UART device when it is not available."""
+    if Path(serial_device).exists():
+        print(f"UART device already exists: {serial_device}", flush=True)
+        return
+
+    if not hasattr(os, "geteuid") or os.geteuid() != 0:
+        raise RuntimeError(
+            f"{serial_device} does not exist and UART setup requires root.\n"
+            "Stop the listener, run `su -`, return to the repository, and "
+            "start button_listener.py again."
+        )
+
+    for command_name in ("msix-rp1", "gpio-rp1", UART_DRIVER_COMMAND[0], "stty"):
+        if shutil.which(command_name) is None:
+            raise RuntimeError(f"Required QNX command was not found: {command_name}")
+
+    # The final argument is 25 followed by a lowercase letter L.
+    run_setup_command(["msix-rp1", "-m", "set", "25l"])
+    run_setup_command(["gpio-rp1", "set", "14,15", "a4"])
+
+    print(f"UART setup: {' '.join(UART_DRIVER_COMMAND)}", flush=True)
+    try:
+        driver = subprocess.Popen(UART_DRIVER_COMMAND)
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            f"Required QNX command was not found: {UART_DRIVER_COMMAND[0]}"
+        ) from error
+
+    deadline = time.monotonic() + 5
+    while not Path(serial_device).exists() and time.monotonic() < deadline:
+        return_code = driver.poll()
+        if return_code is not None and return_code != 0:
+            raise RuntimeError(
+                f"{UART_DRIVER_COMMAND[0]} exited with status {return_code}."
+            )
+        time.sleep(0.1)
+
+    if not Path(serial_device).exists():
+        raise RuntimeError(
+            f"The UART driver started, but {serial_device} did not appear "
+            "within 5 seconds."
+        )
+
+    with open(serial_device, "rb", buffering=0) as uart_input:
+        print(f"UART setup: configuring 115200 8N1 on {serial_device}", flush=True)
+        try:
+            subprocess.run(
+                ["stty", "baud=115200", "par=none", "bits=8", "stopb=1"],
+                stdin=uart_input,
+                check=True,
+            )
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError(
+                f"stty failed with status {error.returncode} for {serial_device}."
+            ) from error
+
+    devices = sorted(Path("/dev").glob("ser*"))
+    print(
+        "UART devices: " + ", ".join(str(device) for device in devices),
+        flush=True,
+    )
 
 
 def configure_uart(file_descriptor: int) -> None:
@@ -100,6 +192,11 @@ def main() -> None:
         parser.error("--cooldown cannot be negative")
     if not DEVICE_CLIENT.is_file():
         parser.error(f"Device client not found: {DEVICE_CLIENT}")
+
+    try:
+        setup_qnx_uart(args.serial_device)
+    except RuntimeError as error:
+        raise SystemExit(f"Could not set up QNX UART: {error}") from error
 
     try:
         uart = os.open(args.serial_device, os.O_RDWR | os.O_NOCTTY)
