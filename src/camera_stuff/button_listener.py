@@ -78,7 +78,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--serial-device",
-        default="/dev/ser10",
+        default="/dev/ser1",
         help="QNX UART device connected to UNO Q TX1/RX1",
     )
     parser.add_argument("--camera", default="./testing_camera")
