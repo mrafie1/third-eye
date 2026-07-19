@@ -86,3 +86,47 @@ To save the ElevenLabs result locally instead of sending it:
 python test_image_to_speech.py backend/test_images/menu.jpg \
   --save-audio test_output.mp3
 ```
+
+## UNO Q buttons over UART
+
+Flash `uno_q/button_sender/button_sender.ino` to the UNO Q MCU. It sends `0`,
+`1`, or `2` at 115200 baud when a Modulino button is newly pressed.
+
+Connect the UART and ground:
+
+```text
+UNO Q D1 (TX1) -> Pi pin 10 (GPIO15/RXD)
+UNO Q D0 (RX1) -> Pi pin 8  (GPIO14/TXD)
+UNO Q GND      -> Pi pin 6  (GND)
+```
+
+On QNX, find the UART device and first test without audio:
+
+```sh
+ls -l /dev/ser*
+python src/camera_stuff/button_listener.py \
+  --serial-device /dev/ser1 \
+  --dry-run
+```
+
+Then test the buttons with the camera and Gemini, but without audio:
+
+```sh
+python src/camera_stuff/button_listener.py \
+  --serial-device /dev/ser1 \
+  --no-audio
+```
+
+For the complete camera-to-UNO-Q audio workflow:
+
+```sh
+python src/camera_stuff/button_listener.py \
+  --serial-device /dev/ser1
+```
+
+The default accessibility mappings are:
+
+- Button 0: read menu sections, items, options, specials, and prices.
+- Button 1: assist with ordering, payment, queues, and pickup areas.
+- Button 2: read and locate restaurant signage, entrances, exits, restrooms,
+  accessible routes, seating, allergen warnings, and potential obstacles.
