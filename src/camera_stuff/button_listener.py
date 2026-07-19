@@ -15,24 +15,16 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEVICE_CLIENT = REPOSITORY_ROOT / "src" / "camera_stuff" / "device_client.py"
 
 BUTTON_PROMPTS = {
-    "0": (
-        "Read the visible restaurant or cafe menu. Clearly state item names, "
-        "prices, sizes, options, specials, and sold-out notices. Preserve "
-        "numbers and currency exactly. If the menu is long, summarize its "
+    "1": (
+        "Read the visible restaurant or cafe menu. Summarize its "
         "sections first and then read the section centered in the image."
     ),
-    "1": (
-        "Help me order at this restaurant or cafe. Briefly describe the visible "
-        "counter, register, ordering kiosk, queue, staff, table numbers, pickup "
-        "area, and payment instructions. Read any ordering prompts and use "
+    "2": (
+        "Help me order at this restaurant or cafe. Read any ordering prompts and use "
         "left, center, right, or clock positions."
     ),
-    "2": (
-        "Read and locate important restaurant or cafe signage, including "
-        "entrance, exit, restroom, accessible entrance, seating, order here, "
-        "pickup, allergen warnings, and opening hours. Mention visible doors, "
-        "stairs, nearby furniture, and potential obstacles using left, center, "
-        "right, or clock positions. Do not claim that the path is safe."
+    "0": (
+        "Read all visible text in front of me exactly."
     ),
 }
 
